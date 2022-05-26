@@ -3,7 +3,7 @@ package controller
 import (
 	"DouSheng/service"
 	"net/http"
-	"time"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,12 +15,20 @@ type FeedResponse struct {
 }
 
 func Feed(c *gin.Context) {
-	// TODO finish feed
-	videos, err := service.GetFeed()
+	latestTime_str := c.Query("latest_time")
+	latestTime, err := strconv.ParseInt(latestTime_str, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusOK, FeedResponse{
 			Response: Response{StatusCode: 1, StatusMsg: err.Error()},
-			NextTime: time.Now().Unix(),
+			NextTime: 0,
+		})
+		return
+	}
+	videos, nextTime, err := service.GetFeed(latestTime)
+	if err != nil {
+		c.JSON(http.StatusOK, FeedResponse{
+			Response: Response{StatusCode: 1, StatusMsg: err.Error()},
+			NextTime: 0,
 		})
 		return
 	}
@@ -41,6 +49,6 @@ func Feed(c *gin.Context) {
 	c.JSON(http.StatusOK, FeedResponse{
 		Response:  Response{StatusCode: 0},
 		VideoList: videos,
-		NextTime:  time.Now().Unix(),
+		NextTime:  nextTime,
 	})
 }

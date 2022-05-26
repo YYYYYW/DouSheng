@@ -19,7 +19,7 @@ func UserPublishComment(userId int64, videoId int64, text *string) (*Comment, er
 		Id:         commentId,
 		User:       *user,
 		Content:    *text,
-		CreateDate: time.Now().Format("MM-dd"),
+		CreateDate: time.Now().Format("01-02"),
 	}
 	return &commentCtr, nil
 }
@@ -42,7 +42,7 @@ func QueryCommentListByVideoId(videoId int64) ([]Comment, error) {
 			Id:         (*commentsDB)[i].CommentId,
 			User:       *user,
 			Content:    (*commentsDB)[i].Content,
-			CreateDate: (*commentsDB)[i].CreateAt.Format("MM-dd"),
+			CreateDate: (*commentsDB)[i].CreateAt.Format("01-02"),
 		}
 	}
 	return commentsCtr, nil

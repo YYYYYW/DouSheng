@@ -98,12 +98,12 @@ func QueryUserFollowList(userId int64) ([]User, error) {
 	if err != nil {
 		return nil, err
 	}
-	usersLen := len(usersDB)
+	usersLen := len(*usersDB)
 	usersCtr := make([]User, usersLen)
 	for i := 0; i < usersLen; i++ {
 		usersCtr[i] = User{
-			Id:   usersDB[i].UserId,
-			Name: usersDB[i].Name,
+			Id:   (*usersDB)[i].UserId,
+			Name: (*usersDB)[i].Name,
 		}
 	}
 	return usersCtr, nil
@@ -115,12 +115,12 @@ func QueryUserFollowerList(userId int64) ([]User, error) {
 	if err != nil {
 		return nil, err
 	}
-	usersLen := len(usersDB)
+	usersLen := len(*usersDB)
 	usersCtr := make([]User, usersLen)
 	for i := 0; i < usersLen; i++ {
 		usersCtr[i] = User{
-			Id:   usersDB[i].UserId,
-			Name: usersDB[i].Name,
+			Id:   (*usersDB)[i].UserId,
+			Name: (*usersDB)[i].Name,
 		}
 	}
 	return usersCtr, nil

@@ -2,13 +2,16 @@ package service
 
 import (
 	"DouSheng/database"
+	"log"
+	"time"
 )
 
 // 获取Feed视频流
-func GetFeed() ([]Video, error) {
-	videosDB, err := database.NewDaoInstance().QueryVideos()
+func GetFeed(latestTime int64) ([]Video, int64, error) {
+	log.Printf("time now: %d, latestTime: %d", time.Now().UnixMilli(), latestTime)
+	videosDB, err := database.NewDaoInstance().QueryVideos(latestTime)
 	if err != nil {
-		return nil, err
+		return nil, latestTime, err
 	}
 	videosLen := len(*videosDB)
 	videosCtr := make([]Video, videosLen)
@@ -16,7 +19,6 @@ func GetFeed() ([]Video, error) {
 		favCount := database.NewDaoInstance().CountVideoLikesByVideoId((*videosDB)[i].VideoId)
 		comCount := database.NewDaoInstance().CountVideoCommentsByVideoId((*videosDB)[i].VideoId)
 		videoPublisher, _ := QueryUserByUserId((*videosDB)[i].Publisher)
-		// isLike := database.NewDaoInstance().QueryIsUserLikeVideo(userId, videosDB[i].VideoId)
 		videosCtr[i] = Video{
 			Id:            (*videosDB)[i].VideoId,
 			Author:        *videoPublisher,
@@ -27,15 +29,20 @@ func GetFeed() ([]Video, error) {
 			IsFavorite:    false,
 		}
 	}
-	return videosCtr, nil
+	nextTime := latestTime
+	if videosLen > 0 {
+		nextTime = (*videosDB)[0].CreateTime
+	}
+	return videosCtr, nextTime, nil
 }
 
 // 发布视频
 func PublishVideo(playUrl *string, title *string, userId int64) error {
 	videoDB := database.Video{
-		Publisher: userId,
-		PlayUrl:   *playUrl,
-		Title:     *title,
+		Publisher:  userId,
+		PlayUrl:    *playUrl,
+		Title:      *title,
+		CreateTime: time.Now().UnixMilli(),
 	}
 	return database.NewDaoInstance().InsertVideo(&videoDB)
 }

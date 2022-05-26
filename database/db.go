@@ -62,9 +62,13 @@ func Init() {
 }
 
 // 获取视频
-func (*Dao) QueryVideos() (*[]Video, error) {
+func (*Dao) QueryVideos(time int64) (*[]Video, error) {
 	var videos []Video
-	result := db.Model(&Video{}).Limit(20).Find(&videos)
+	result := db.Model(&Video{}).Order("created_time desc").
+		Limit(10).Find(&videos)
+	// 测试时使用的数据较少，暂时使用上面这条查询语句
+	// result := db.Model(&Video{}).Where("created_time >= ?", time).
+	// 	Limit(10).Order("created_time desc").Find(&videos)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return &[]Video{}, nil
 	}
@@ -200,7 +204,7 @@ func (*Dao) QueryIsUserRelationToUser(userId int64, to_userId int64) bool {
 
 // 如果action为1，查找user关注的用户列表
 // 如果action为2，查找关注user的用户列表
-func (*Dao) QueryUserRelationList(userId int64, action int) ([]User, error) {
+func (*Dao) QueryUserRelationList(userId int64, action int) (*[]User, error) {
 	var users []User
 	var result *gorm.DB
 	if action == 1 {
@@ -217,12 +221,12 @@ func (*Dao) QueryUserRelationList(userId int64, action int) ([]User, error) {
 		return nil, errors.New("unknow action")
 	}
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return []User{}, nil
+		return &[]User{}, nil
 	}
 	for i := 0; i < len(users); i++ {
 		log.Printf(users[i].Name)
 	}
-	return users, nil
+	return &users, nil
 }
 
 // 添加喜爱，user对video的点赞

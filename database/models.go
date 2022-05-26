@@ -44,14 +44,14 @@ type UserRelation struct {
 **************************************************/
 
 type Video struct {
-	VideoId   int64      `gorm:"column:video_id;primaryKey"`
-	Publisher int64      `gorm:"column:publisher"`
-	Title     string     `gorm:"column:title"`
-	PlayUrl   string     `gorm:"column:play_url"`
-	CoverUrl  string     `gorm:"column:cover_url"`
-	CreatedAt time.Time  `gorm:"column:created_time"`
-	LikeUsers []LikeList `gorm:"ForeignKey:VideoLikedId"`
-	Comments  []Comment  `gorm:"ForeignKey:CommentVideoId"`
+	VideoId    int64      `gorm:"column:video_id;primaryKey"`
+	Publisher  int64      `gorm:"column:publisher"`
+	Title      string     `gorm:"column:title"`
+	PlayUrl    string     `gorm:"column:play_url"`
+	CoverUrl   string     `gorm:"column:cover_url"`
+	CreateTime int64      `gorm:"column:created_time"`
+	LikeUsers  []LikeList `gorm:"ForeignKey:VideoLikedId"`
+	Comments   []Comment  `gorm:"ForeignKey:CommentVideoId"`
 }
 
 /***************    table videos    **************

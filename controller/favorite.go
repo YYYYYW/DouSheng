@@ -2,6 +2,7 @@ package controller
 
 import (
 	"DouSheng/service"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -88,6 +89,7 @@ func FavoriteList(c *gin.Context) {
 			videos[i].IsFavorite = service.IsUserLikeVideo(ckId, videos[i].Id)
 		}
 	}
+	log.Printf("favorite list size: %d", len(videos))
 	c.JSON(http.StatusOK, VideoListResponse{
 		Response: Response{
 			StatusCode: 0,

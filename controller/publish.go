@@ -3,6 +3,7 @@ package controller
 import (
 	"DouSheng/service"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -100,6 +101,7 @@ func PublishList(c *gin.Context) {
 	for i := 0; i < len(videos); i++ {
 		videos[i].IsFavorite = service.IsUserLikeVideo(ckId, videos[i].Id)
 	}
+	log.Printf("publish list size: %d", len(videos))
 	c.JSON(http.StatusOK, VideoListResponse{
 		Response: Response{
 			StatusCode: 0,
