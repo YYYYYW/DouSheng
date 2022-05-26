@@ -49,28 +49,8 @@ func Register(c *gin.Context) {
 	c.JSON(http.StatusOK, UserLoginResponse{
 		Response: Response{StatusCode: 0},
 		UserId:   id,
-		Token:    username + password,
+		Token:    username + "|" + password,
 	})
-
-	// token := username + password
-
-	// if _, exist := usersLoginInfo[token]; exist {
-	// 	c.JSON(http.StatusOK, UserLoginResponse{
-	// 		Response: Response{StatusCode: 1, StatusMsg: "User already exist"},
-	// 	})
-	// } else {
-	// 	atomic.AddInt64(&userIdSequence, 1)
-	// 	newUser := User{
-	// 		Id:   userIdSequence,
-	// 		Name: username,
-	// 	}
-	// 	usersLoginInfo[token] = newUser
-	// 	c.JSON(http.StatusOK, UserLoginResponse{
-	// 		Response: Response{StatusCode: 0},
-	// 		UserId:   userIdSequence,
-	// 		Token:    username + password,
-	// 	})
-	// }
 }
 
 func Login(c *gin.Context) {
@@ -82,7 +62,7 @@ func Login(c *gin.Context) {
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
 			UserId:   id,
-			Token:    username + password,
+			Token:    username + "|" + password,
 		})
 	} else {
 		log.Printf("Query user not exist")
@@ -90,36 +70,40 @@ func Login(c *gin.Context) {
 			Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist!"},
 		})
 	}
-	// token := username + password
-
-	// if user, exist := usersLoginInfo[token]; exist {
-	// 	c.JSON(http.StatusOK, UserLoginResponse{
-	// 		Response: Response{StatusCode: 0},
-	// 		UserId:   user.Id,
-	// 		Token:    token,
-	// 	})
-	// } else {
-	// 	c.JSON(http.StatusOK, UserLoginResponse{
-	// 		Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist"},
-	// 	})
-	// }
 }
 
 func UserInfo(c *gin.Context) {
 	user_id := c.Query("user_id")
 	token := c.Query("token")
 
-	// 表示这是第一次注册时登录的用户
+	ckId, err := service.CheckTokenReturnID(&token)
+	if err != nil {
+		c.JSON(http.StatusOK, UserResponse{
+			Response: Response{
+				StatusCode: 1,
+				StatusMsg:  err.Error()},
+		})
+		return
+	}
+	// 如果user_id为空则使用返回ckId的用户信息
 	if user_id == "" {
-		mapexist, _ := service.QueryUserIdByToken(&token)
-		if !mapexist {
-			log.Printf("User info not find in map")
+		user, err := service.QueryUserByUserId(ckId)
+		if err != nil {
 			c.JSON(http.StatusOK, UserResponse{
-				Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist"},
+				Response: Response{
+					StatusCode: 1,
+					StatusMsg:  err.Error()},
 			})
+			return
 		}
+		// 这里默认自己对自己是没有关注的
+		user.IsFollow = false
+		c.JSON(http.StatusOK, UserResponse{
+			Response: Response{StatusCode: 0},
+			User:     *user,
+		})
 	} else {
-		// 表示这是后续查询的用户
+		// 否则返回user_id的用户信息
 		id, err := strconv.ParseInt(user_id, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusOK, UserResponse{
@@ -127,33 +111,20 @@ func UserInfo(c *gin.Context) {
 			})
 			return
 		}
-		ret := service.CheckToken(id, &token)
-		if ret == -1 {
+		user, err := service.QueryUserByUserId(id)
+		if err != nil {
 			c.JSON(http.StatusOK, UserResponse{
-				Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist"},
-			})
-			return
-		} else if ret == -2 {
-			c.JSON(http.StatusOK, UserResponse{
-				Response: Response{StatusCode: 1, StatusMsg: "authentication failed"},
+				Response: Response{
+					StatusCode: 1,
+					StatusMsg:  err.Error()},
 			})
 			return
 		}
-		_, user := service.QueryUserByUserId(id)
+		// 接下来查询自己是否关注了该user_id
+		user.IsFollow = service.IsUserFollowToUser(ckId, id)
 		c.JSON(http.StatusOK, UserResponse{
 			Response: Response{StatusCode: 0},
 			User:     *user,
 		})
 	}
-
-	// if user, exist := usersLoginInfo[token]; exist {
-	// 	c.JSON(http.StatusOK, UserResponse{
-	// 		Response: Response{StatusCode: 0},
-	// 		User:     user,
-	// 	})
-	// } else {
-	// 	c.JSON(http.StatusOK, UserResponse{
-	// 		Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist"},
-	// 	})
-	// }
 }

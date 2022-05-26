@@ -62,18 +62,13 @@ func Init() {
 }
 
 // 获取视频
-func (*Dao) QueryVideos() ([]Video, error) {
-	rows, err := db.Model(&Video{}).Limit(20).Rows()
-	if err != nil {
-		return nil, err
+func (*Dao) QueryVideos() (*[]Video, error) {
+	var videos []Video
+	result := db.Model(&Video{}).Limit(20).Find(&videos)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return &[]Video{}, nil
 	}
-	videos := make([]Video, 0)
-	for rows.Next() {
-		var video Video
-		db.ScanRows(rows, &video)
-		videos = append(videos, video)
-	}
-	return videos, nil
+	return &videos, nil
 }
 
 // 添加用户
@@ -107,14 +102,14 @@ func (*Dao) QueryUserByUserId(userId int64) (*User, error) {
 // 根据id查找关注数
 func (*Dao) CountUserFollowById(userId int64) int64 {
 	var count int64
-	db.Model(&UserRelation{}).Where("follow_id = ?", userId).Count(&count)
+	db.Model(&UserRelation{}).Where("fan_id = ?", userId).Count(&count)
 	return count
 }
 
 // 根据id查找被关注数
 func (*Dao) CountUserFollowerById(userId int64) int64 {
 	var count int64
-	db.Model(&UserRelation{}).Where("fan_id = ?", userId).Count(&count)
+	db.Model(&UserRelation{}).Where("follow_id = ?", userId).Count(&count)
 	return count
 }
 
@@ -172,10 +167,11 @@ func (*Dao) CountVideoCommentsByVideoId(videoId int64) int64 {
 
 // 判断userId是否喜爱videoId
 func (*Dao) QueryIsUserLikeVideo(userId int64, videoId int64) bool {
-	result := db.Model(&LikeList{}).
+	var count int64
+	db.Model(&LikeList{}).
 		Where("video_id = ? AND user_id = ?", videoId, userId).
-		First(&LikeList{})
-	return errors.Is(result.Error, gorm.ErrRecordNotFound)
+		Count(&count)
+	return count == 1
 }
 
 // 添加关注，fan添加对user的关注
@@ -188,50 +184,44 @@ func (*Dao) InsertRelation(fanId int64, userId int64) error {
 // 取消关注，fan取消对user的关注
 func (*Dao) DeleteRelation(fanId int64, userId int64) error {
 	result := db.Model(&UserRelation{}).
-		Where("user_id = ? AND fan_id = ?", userId, fanId).
+		Where("follow_id = ? AND fan_id = ?", userId, fanId).
 		Delete(&UserRelation{})
 	return result.Error
 }
 
 // 判断user是否关注了to_user
 func (*Dao) QueryIsUserRelationToUser(userId int64, to_userId int64) bool {
-	result := db.Model(&UserRelation{}).
-		Where("follow_id = ? AND fan_id", to_userId, userId).
-		First(&UserRelation{})
-	return errors.Is(result.Error, gorm.ErrRecordNotFound)
+	var count int64
+	db.Model(&UserRelation{}).
+		Where("follow_id = ? AND fan_id = ?", to_userId, userId).
+		Count(&count)
+	return count == 1
 }
 
 // 如果action为1，查找user关注的用户列表
 // 如果action为2，查找关注user的用户列表
 func (*Dao) QueryUserRelationList(userId int64, action int) ([]User, error) {
+	var users []User
 	var result *gorm.DB
 	if action == 1 {
+		log.Printf("get follow list from id: %d ", userId)
 		result = db.Model(&User{}).
 			Joins("inner join user_relations on user_relations.follow_id = users.user_id").
 			Where("fan_id = ?", userId).
-			First(&User{})
+			Find(&users)
 	} else if action == 2 {
+		log.Printf("get follower list from id: %d ", userId)
 		result = db.Model(&User{}).
 			Joins("inner join user_relations on user_relations.follow_id = users.user_id").
 			Where("follow_id = ?", userId).
-			First(&User{})
+			Find(&users)
 	} else {
 		return nil, errors.New("unknow action")
 	}
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return []User{}, nil
 	}
-	rows, err := result.Rows()
-	if err != nil {
-		return nil, err
-	}
-	follows := make([]User, result.RowsAffected)
-	i := 0
-	for rows.Next() {
-		db.ScanRows(rows, &follows[i])
-		i++
-	}
-	return follows, nil
+	return users, nil
 }
 
 // 添加喜爱，user对video的点赞
@@ -272,22 +262,14 @@ func (*Dao) DeleteComment(commentId int64) error {
 }
 
 // 通过videoId查找评论
-func (*Dao) QueryCommentListByVideoId(videoId int64) ([]Comment, error) {
+func (*Dao) QueryCommentListByVideoId(videoId int64) (*[]Comment, error) {
+	var comments []Comment
 	result := db.Model(&Comment{}).
 		Where("video_id = ?", videoId).
-		Find(&Comment{})
+		Order("create_time desc").
+		Find(&comments)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		return []Comment{}, nil
+		return &[]Comment{}, nil
 	}
-	rows, err := result.Rows()
-	if err != nil {
-		return nil, err
-	}
-	comments := make([]Comment, result.RowsAffected)
-	i := 0
-	for rows.Next() {
-		db.ScanRows(rows, &comments[i])
-		i++
-	}
-	return comments, nil
+	return &comments, nil
 }

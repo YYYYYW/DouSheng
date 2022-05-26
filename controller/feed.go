@@ -14,13 +14,8 @@ type FeedResponse struct {
 	NextTime  int64           `json:"next_time,omitempty"`
 }
 
-// Feed same demo video list for every request
 func Feed(c *gin.Context) {
-	// latest_time := c.Query("latest_time")
-	// token := c.Query("token")
-	// if token == "" {
-
-	// }
+	// TODO finish feed
 	videos, err := service.GetFeed()
 	if err != nil {
 		c.JSON(http.StatusOK, FeedResponse{

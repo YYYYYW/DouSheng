@@ -15,17 +15,16 @@ type VideoListResponse struct {
 	VideoList []service.Video `json:"video_list"`
 }
 
-// Publish check token then save upload file to public directory
 func Publish(c *gin.Context) {
 	token := c.PostForm("token")
-
-	exist, id := service.QueryUserIdByToken(&token)
-	if !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "User doesn't exist"})
-	}
-	exist, user := service.QueryUserByUserId(id)
-	if !exist {
-		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "User doesn't exist"})
+	// ckId就是当前用户的ID
+	ckId, err := service.CheckTokenReturnID(&token)
+	if err != nil {
+		c.JSON(http.StatusOK, UserResponse{
+			Response: Response{
+				StatusCode: 1,
+				StatusMsg:  err.Error()},
+		})
 		return
 	}
 
@@ -38,8 +37,9 @@ func Publish(c *gin.Context) {
 		return
 	}
 
+	title := c.Query("title")
 	filename := filepath.Base(data.Filename)
-	finalName := fmt.Sprintf("%d_%s", user.Id, filename)
+	finalName := fmt.Sprintf("%d_%s", ckId, filename)
 	saveFile := filepath.Join("./public/", finalName)
 
 	if err := c.SaveUploadedFile(data, saveFile); err != nil {
@@ -51,7 +51,7 @@ func Publish(c *gin.Context) {
 	}
 
 	videoUrl := fmt.Sprintf("http://192.168.1.100:8080/static/%s", finalName)
-	if err := service.PublishVideo(&videoUrl, user); err != nil {
+	if err := service.PublishVideo(&videoUrl, &title, ckId); err != nil {
 		c.JSON(http.StatusOK, Response{
 			StatusCode: 1,
 			StatusMsg:  err.Error(),
@@ -63,66 +63,30 @@ func Publish(c *gin.Context) {
 		StatusCode: 0,
 		StatusMsg:  finalName + " uploaded successfully",
 	})
-
-	// if _, exist := usersLoginInfo[token]; !exist {
-	// 	c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "User doesn't exist"})
-	// 	return
-	// }
-
-	// data, err := c.FormFile("data")
-	// if err != nil {
-	// 	c.JSON(http.StatusOK, Response{
-	// 		StatusCode: 1,
-	// 		StatusMsg:  err.Error(),
-	// 	})
-	// 	return
-	// }
-
-	// filename := filepath.Base(data.Filename)
-	// user := usersLoginInfo[token]
-	// finalName := fmt.Sprintf("%d_%s", user.Id, filename)
-	// saveFile := filepath.Join("./public/", finalName)
-	// if err := c.SaveUploadedFile(data, saveFile); err != nil {
-	// 	c.JSON(http.StatusOK, Response{
-	// 		StatusCode: 1,
-	// 		StatusMsg:  err.Error(),
-	// 	})
-	// 	return
-	// }
-
-	// c.JSON(http.StatusOK, Response{
-	// 	StatusCode: 0,
-	// 	StatusMsg:  finalName + " uploaded successfully",
-	// })
 }
 
-// PublishList all users have same publish video list
 func PublishList(c *gin.Context) {
-	id_str := c.Query("user_id")
-	id, err := strconv.ParseInt(id_str, 10, 64)
+	token := c.Query("token")
+	ckId, err := service.CheckTokenReturnID(&token)
+	if err != nil {
+		c.JSON(http.StatusOK, Response{
+			StatusCode: 1,
+			StatusMsg:  err.Error(),
+		})
+		return
+	}
+
+	userId_str := c.Query("user_id")
+	userId, err := strconv.ParseInt(userId_str, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusOK, Response{
 			StatusCode: 1,
 			StatusMsg:  "Unknow ID",
 		})
+		return
 	}
 
-	token := c.Query("token")
-	ret := service.CheckToken(id, &token)
-	if ret == -1 {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  "User doesn't exist",
-		})
-		return
-	} else if ret == -2 {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  "authentication failed",
-		})
-		return
-	}
-	videos, err := service.QueryUserPublishList(id)
+	videos, err := service.QueryUserPublishList(userId)
 	if err != nil {
 		c.JSON(http.StatusOK, VideoListResponse{
 			Response: Response{
@@ -131,6 +95,10 @@ func PublishList(c *gin.Context) {
 			},
 		})
 		return
+	}
+	// 接下来判断ckId用户是否喜爱这些视频
+	for i := 0; i < len(videos); i++ {
+		videos[i].IsFavorite = service.IsUserLikeVideo(ckId, videos[i].Id)
 	}
 	c.JSON(http.StatusOK, VideoListResponse{
 		Response: Response{

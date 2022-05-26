@@ -7,8 +7,8 @@ import (
 )
 
 func UserPublishComment(userId int64, videoId int64, text *string) (*Comment, error) {
-	exist, user := QueryUserByUserId(userId)
-	if !exist {
+	user, err := QueryUserByUserId(userId)
+	if err != nil {
 		return nil, errors.New("User doesn't exist")
 	}
 	commentId, err := database.NewDaoInstance().InsertComment(userId, videoId, text)
@@ -33,15 +33,16 @@ func QueryCommentListByVideoId(videoId int64) ([]Comment, error) {
 	if err != nil {
 		return nil, err
 	}
-	commentsLen := len(commentsDB)
+	commentsLen := len(*commentsDB)
 	commentsCtr := make([]Comment, commentsLen)
 	for i := 0; i < commentsLen; i++ {
-		_, user := QueryUserByUserId(commentsDB[i].CommentUserId)
+		// TODO 可以联查
+		user, _ := QueryUserByUserId((*commentsDB)[i].CommentUserId)
 		commentsCtr[i] = Comment{
-			Id:         commentsDB[i].CommentId,
+			Id:         (*commentsDB)[i].CommentId,
 			User:       *user,
-			Content:    commentsDB[i].Content,
-			CreateDate: commentsDB[i].CreateAt.Format("MM-dd"),
+			Content:    (*commentsDB)[i].Content,
+			CreateDate: (*commentsDB)[i].CreateAt.Format("MM-dd"),
 		}
 	}
 	return commentsCtr, nil

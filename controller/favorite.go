@@ -2,7 +2,6 @@ package controller
 
 import (
 	"DouSheng/service"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -11,21 +10,12 @@ import (
 
 // 前端传token，video_id，action_type。没有userId
 func FavoriteAction(c *gin.Context) {
-	// userId_str := c.Query("user_id")
-	// userId, err := strconv.ParseInt(userId_str, 10, 64)
-	// if err != nil {
-	// 	c.JSON(http.StatusOK, Response{
-	// 		StatusCode: 1,
-	// 		StatusMsg:  "Unknow ID",
-	// 	})
-	// 	return
-	// }
 	token := c.Query("token")
-	exist, userId := service.QueryUserIdByToken(&token)
-	if !exist {
+	ckId, err := service.CheckTokenReturnID(&token)
+	if err != nil {
 		c.JSON(http.StatusOK, Response{
 			StatusCode: 1,
-			StatusMsg:  "User doesn't exist",
+			StatusMsg:  err.Error(),
 		})
 	}
 
@@ -41,14 +31,14 @@ func FavoriteAction(c *gin.Context) {
 	action_type := c.Query("action_type")
 
 	if action_type == "1" {
-		err := service.UserLikeVideo(userId, videoId)
+		err := service.UserLikeVideo(ckId, videoId)
 		if err != nil {
 			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, Response{StatusCode: 0})
 	} else if action_type == "2" {
-		err := service.UserUnLikeVideo(userId, videoId)
+		err := service.UserUnLikeVideo(ckId, videoId)
 		if err != nil {
 			c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: err.Error()})
 			return
@@ -60,32 +50,24 @@ func FavoriteAction(c *gin.Context) {
 }
 
 func FavoriteList(c *gin.Context) {
-	id_str := c.Query("user_id")
 	token := c.Query("token")
-	id, err := strconv.ParseInt(id_str, 10, 64)
+	ckId, err := service.CheckTokenReturnID(&token)
+	if err != nil {
+		c.JSON(http.StatusOK, Response{
+			StatusCode: 1,
+			StatusMsg:  err.Error(),
+		})
+	}
+	userId_str := c.Query("user_id")
+	userId, err := strconv.ParseInt(userId_str, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusOK, Response{
 			StatusCode: 1,
 			StatusMsg:  "Unknow user ID",
 		})
 	}
-	log.Printf("FavoriteList id: %d, token: %s", id, token)
-	ret := service.CheckToken(id, &token)
-	if ret == -1 {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  "User doesn't exist",
-		})
-		return
-	} else if ret == -2 {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  "authentication failed",
-		})
-		return
-	}
 
-	videos, err := service.QueryUserLikeList(id)
+	videos, err := service.QueryUserLikeList(userId)
 	if err != nil {
 		c.JSON(http.StatusOK, VideoListResponse{
 			Response: Response{
@@ -94,6 +76,17 @@ func FavoriteList(c *gin.Context) {
 			},
 		})
 		return
+	}
+
+	// 判断ckId用户是否喜欢这些视频
+	if ckId == userId {
+		for i := 0; i < len(videos); i++ {
+			videos[i].IsFavorite = true
+		}
+	} else {
+		for i := 0; i < len(videos); i++ {
+			videos[i].IsFavorite = service.IsUserLikeVideo(ckId, videos[i].Id)
+		}
 	}
 	c.JSON(http.StatusOK, VideoListResponse{
 		Response: Response{

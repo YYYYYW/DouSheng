@@ -2,7 +2,9 @@ package service
 
 import (
 	"DouSheng/database"
+	"errors"
 	"log"
+	"strings"
 )
 
 var usersLoginInfo = make(map[string]User)
@@ -16,12 +18,11 @@ func QueryUserIdByToken(token *string) (bool, int64) {
 }
 
 // 通过用户ID获取用户信息
-func QueryUserByUserId(userId int64) (bool, *User) {
-	// TODO 可以尝试先根据token直接在map里面找（需要判断是否更新了），不用每次都访问数据库
-	log.Printf("Query user by id: %d", userId)
+func QueryUserByUserId(userId int64) (*User, error) {
+	// log.Printf("Query user by id: %d", userId)
 	userDB, err := database.NewDaoInstance().QueryUserByUserId(userId)
 	if err != nil {
-		return false, nil
+		return nil, err
 	}
 	followCount := database.NewDaoInstance().CountUserFollowById(userId)
 	followerCount := database.NewDaoInstance().CountUserFollowerById(userId)
@@ -31,12 +32,12 @@ func QueryUserByUserId(userId int64) (bool, *User) {
 		FollowCount:   followCount,
 		FollowerCount: followerCount,
 	}
-	return true, &userCtr
+	return &userCtr, nil
 }
 
 // 根据name，password查询是否存在user，如果存在返回user_id
 func QueryUserExisted(name *string, password *string) (bool, int64) {
-	token := *name + *password
+	token := *name + "|" + *password
 	if val, exist := usersLoginInfo[token]; exist {
 		return true, val.Id
 	}
@@ -50,11 +51,6 @@ func QueryUserExisted(name *string, password *string) (bool, int64) {
 	}
 	usersLoginInfo[token] = userCtr
 	return true, userDB.UserId
-}
-
-// 根据token判断用户是否存在
-func QueryUserExistedByToken(token *string) (bool, int64) {
-	return QueryUserIdByToken(token)
 }
 
 // 根据userId判断用户是否存在
@@ -91,6 +87,11 @@ func UserUnRelationToUser(userId int64, to_userId int64) error {
 	return database.NewDaoInstance().DeleteRelation(userId, to_userId)
 }
 
+// 判断user是否关注了to_user
+func IsUserFollowToUser(userId int64, to_userId int64) bool {
+	return database.NewDaoInstance().QueryIsUserRelationToUser(userId, to_userId)
+}
+
 // 查询user的关注列表
 func QueryUserFollowList(userId int64) ([]User, error) {
 	usersDB, err := database.NewDaoInstance().QueryUserRelationList(userId, 1)
@@ -100,13 +101,9 @@ func QueryUserFollowList(userId int64) ([]User, error) {
 	usersLen := len(usersDB)
 	usersCtr := make([]User, usersLen)
 	for i := 0; i < usersLen; i++ {
-		followerCount := database.NewDaoInstance().CountUserFollowerById(userId)
 		usersCtr[i] = User{
-			Id:            usersDB[i].UserId,
-			Name:          usersDB[i].Name,
-			FollowCount:   int64(usersLen),
-			FollowerCount: followerCount,
-			IsFollow:      true,
+			Id:   usersDB[i].UserId,
+			Name: usersDB[i].Name,
 		}
 	}
 	return usersCtr, nil
@@ -114,42 +111,39 @@ func QueryUserFollowList(userId int64) ([]User, error) {
 
 // 查询关注user的列表
 func QueryUserFollowerList(userId int64) ([]User, error) {
-	usersDB, err := database.NewDaoInstance().QueryUserRelationList(userId, 1)
+	usersDB, err := database.NewDaoInstance().QueryUserRelationList(userId, 2)
 	if err != nil {
 		return nil, err
 	}
 	usersLen := len(usersDB)
 	usersCtr := make([]User, usersLen)
 	for i := 0; i < usersLen; i++ {
-		followCount := database.NewDaoInstance().CountUserFollowById(userId)
-		isFollow := database.NewDaoInstance().QueryIsUserRelationToUser(userId, usersDB[i].UserId)
 		usersCtr[i] = User{
-			Id:            usersDB[i].UserId,
-			Name:          usersDB[i].Name,
-			FollowCount:   followCount,
-			FollowerCount: int64(usersLen),
-			IsFollow:      isFollow,
+			Id:   usersDB[i].UserId,
+			Name: usersDB[i].Name,
 		}
 	}
 	return usersCtr, nil
 }
 
-// 检查用户Token是否有效，返回为1表示有效，返回-1表示用户不存在，返回-2表示鉴权失败
-func CheckToken(userId int64, token *string) int64 {
-	exist, id := QueryUserExistedByToken(token)
-	if exist {
-		if id != userId {
-			return -2
-		}
-		return 1
+// 检查用户Token是否有效，有效时返回用户ID，无效时返回err
+func CheckTokenReturnID(token *string) (int64, error) {
+	if *token == "" {
+		return -1, errors.New("please login")
 	}
-	if userDB, exist := QueryUserExistedById(userId); exist {
-		token := userDB.Name + userDB.PassWord
-		usersLoginInfo[token] = User{
-			Id:   userDB.UserId,
-			Name: userDB.Name,
-		}
-		return 1
+	if exist, id := QueryUserIdByToken(token); exist {
+		return id, nil
 	}
-	return -1
+	sp := strings.Index(*token, "|")
+	name := (*token)[:sp]
+	password := (*token)[sp+1:]
+	userDB, err := database.NewDaoInstance().QueryUserByName(&name, &password)
+	if err != nil {
+		return -1, err
+	}
+	usersLoginInfo[*token] = User{
+		Id:   userDB.UserId,
+		Name: name,
+	}
+	return userDB.UserId, nil
 }
