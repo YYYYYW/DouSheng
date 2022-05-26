@@ -24,6 +24,20 @@ func Feed(c *gin.Context) {
 		})
 		return
 	}
+	token := c.Query("token")
+	if token != "" {
+		ckId, err := service.CheckTokenReturnID(&token)
+		if err != nil {
+			c.JSON(http.StatusOK, Response{
+				StatusCode: 1,
+				StatusMsg:  err.Error(),
+			})
+		}
+		for i := 0; i < len(videos); i++ {
+			videos[i].Author.IsFollow = service.IsUserFollowToUser(ckId, videos[i].Author.Id)
+			videos[i].IsFavorite = service.IsUserLikeVideo(ckId, videos[i].Id)
+		}
+	}
 	c.JSON(http.StatusOK, FeedResponse{
 		Response:  Response{StatusCode: 0},
 		VideoList: videos,

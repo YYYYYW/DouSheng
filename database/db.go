@@ -205,21 +205,22 @@ func (*Dao) QueryUserRelationList(userId int64, action int) ([]User, error) {
 	var result *gorm.DB
 	if action == 1 {
 		log.Printf("get follow list from id: %d ", userId)
-		result = db.Model(&User{}).
-			Joins("inner join user_relations on user_relations.follow_id = users.user_id").
-			Where("fan_id = ?", userId).
-			Find(&users)
+		// select (users.user_id, users.name) from users where users.user_id in
+		//           (select user_relations.follow_id where user_relations.fan_id = ?), userId
+		subQuery := db.Select("follow_id").Where("fan_id = ?", userId).Table("user_relations")
+		result = db.Select("user_id, name").Table("users").Where("user_id in (?)", subQuery).Find(&users)
 	} else if action == 2 {
 		log.Printf("get follower list from id: %d ", userId)
-		result = db.Model(&User{}).
-			Joins("inner join user_relations on user_relations.follow_id = users.user_id").
-			Where("follow_id = ?", userId).
-			Find(&users)
+		subQuery := db.Select("fan_id").Where("follow_id = ?", userId).Table("user_relations")
+		result = db.Select("user_id, name").Table("users").Where("user_id in (?)", subQuery).Find(&users)
 	} else {
 		return nil, errors.New("unknow action")
 	}
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return []User{}, nil
+	}
+	for i := 0; i < len(users); i++ {
+		log.Printf(users[i].Name)
 	}
 	return users, nil
 }
