@@ -56,14 +56,6 @@ func RelationAction(c *gin.Context) {
 
 func FollowList(c *gin.Context) {
 	log.Printf("request to follow list")
-	token := c.Query("token")
-	ckId, err := service.CheckTokenReturnID(&token)
-	if err != nil {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  err.Error(),
-		})
-	}
 
 	user_id_str := c.Query("user_id")
 	user_id, err := strconv.ParseInt(user_id_str, 10, 64)
@@ -85,18 +77,29 @@ func FollowList(c *gin.Context) {
 		})
 	}
 
-	// 对于结果用户列表，依次显示ckId用户是否关注了
-	if ckId == user_id {
-		for i := 0; i < len(followList); i++ {
-			followList[i].IsFollow = true
+	token := c.Query("token")
+	if token != "" {
+		ckId, err := service.CheckTokenReturnID(&token)
+		if err != nil {
+			c.JSON(http.StatusOK, Response{
+				StatusCode: 1,
+				StatusMsg:  err.Error(),
+			})
+			return
 		}
-	} else {
-		for i := 0; i < len(followList); i++ {
-			followList[i].IsFollow = service.IsUserFollowToUser(ckId, followList[i].Id)
+
+		// 对于结果用户列表，依次显示ckId用户是否关注了
+		if ckId == user_id {
+			for i := 0; i < len(followList); i++ {
+				followList[i].IsFollow = true
+			}
+		} else {
+			for i := 0; i < len(followList); i++ {
+				followList[i].IsFollow = service.IsUserFollowToUser(ckId, followList[i].Id)
+			}
 		}
 	}
 
-	// 暂时不设置用户列表中每一个用户的关注数和被关注数
 	c.JSON(http.StatusOK, UserListResponse{
 		Response: Response{
 			StatusCode: 0,
@@ -107,14 +110,6 @@ func FollowList(c *gin.Context) {
 
 func FollowerList(c *gin.Context) {
 	log.Printf("request to follower list")
-	token := c.Query("token")
-	ckId, err := service.CheckTokenReturnID(&token)
-	if err != nil {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  err.Error(),
-		})
-	}
 
 	user_id_str := c.Query("user_id")
 	user_id, err := strconv.ParseInt(user_id_str, 10, 64)
@@ -136,9 +131,21 @@ func FollowerList(c *gin.Context) {
 		})
 	}
 
-	// 对于结果用户列表，依次显示ckId用户是否关注了
-	for i := 0; i < len(followerList); i++ {
-		followerList[i].IsFollow = service.IsUserFollowToUser(ckId, followerList[i].Id)
+	token := c.Query("token")
+	if token != "" {
+		ckId, err := service.CheckTokenReturnID(&token)
+		if err != nil {
+			c.JSON(http.StatusOK, Response{
+				StatusCode: 1,
+				StatusMsg:  err.Error(),
+			})
+			return
+		}
+
+		// 对于结果用户列表，依次显示ckId用户是否关注了
+		for i := 0; i < len(followerList); i++ {
+			followerList[i].IsFollow = service.IsUserFollowToUser(ckId, followerList[i].Id)
+		}
 	}
 
 	c.JSON(http.StatusOK, UserListResponse{

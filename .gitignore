@@ -24,4 +24,5 @@ go.work
 
 # test file
 *.mp4
+*.jpg
 TODO.*

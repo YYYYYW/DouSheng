@@ -82,11 +82,21 @@ func (*Dao) InsertUser(user *User) error {
 	return result.Error
 }
 
-// 通过名称查找用户
-func (*Dao) QueryUserByName(name *string, password *string) (*User, error) {
+// 通过名称和密码查找用户
+func (*Dao) QueryUserByNamePwd(name *string, password *string) (*User, error) {
 	var user User
-	log.Printf("QueryUserByName name: %s, password: %s", *name, *password)
+	// log.Printf("QueryUserByName name: %s, password: %s", *name, *password)
 	result := db.Where("name = ? AND password = ?", *name, *password).First(&user)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &user, nil
+}
+
+// 通过名称判断用户是否存在
+func (*Dao) QueryUserByName(name *string) (*User, error) {
+	var user User
+	result := db.Model(&User{}).Where("name = ?", *name).First(&user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, gorm.ErrRecordNotFound
 	}

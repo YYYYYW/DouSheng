@@ -40,6 +40,7 @@ func Feed(c *gin.Context) {
 				StatusCode: 1,
 				StatusMsg:  err.Error(),
 			})
+			return
 		}
 		for i := 0; i < len(videos); i++ {
 			videos[i].Author.IsFollow = service.IsUserFollowToUser(ckId, videos[i].Author.Id)

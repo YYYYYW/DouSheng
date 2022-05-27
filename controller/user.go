@@ -39,7 +39,7 @@ func Register(c *gin.Context) {
 	username := c.Query("username")
 	password := c.Query("password")
 
-	if exist, _ := service.QueryUserExisted(&username, &password); exist {
+	if _, err := service.QueryUserExisted(&username, &password); err == nil {
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 1, StatusMsg: "User already exist"},
 		})
@@ -57,7 +57,8 @@ func Login(c *gin.Context) {
 	username := c.Query("username")
 	password := c.Query("password")
 
-	if exist, id := service.QueryUserExisted(&username, &password); exist {
+	log.Printf("Login name: %s pwd: %s", username, password)
+	if id, err := service.QueryUserExisted(&username, &password); err == nil {
 		log.Printf("Query user exist")
 		c.JSON(http.StatusOK, UserLoginResponse{
 			Response: Response{StatusCode: 0},
@@ -67,7 +68,7 @@ func Login(c *gin.Context) {
 	} else {
 		log.Printf("Query user not exist")
 		c.JSON(http.StatusOK, UserLoginResponse{
-			Response: Response{StatusCode: 1, StatusMsg: "User doesn't exist!"},
+			Response: Response{StatusCode: 1, StatusMsg: err.Error()},
 		})
 	}
 }

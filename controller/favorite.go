@@ -51,14 +51,6 @@ func FavoriteAction(c *gin.Context) {
 }
 
 func FavoriteList(c *gin.Context) {
-	token := c.Query("token")
-	ckId, err := service.CheckTokenReturnID(&token)
-	if err != nil {
-		c.JSON(http.StatusOK, Response{
-			StatusCode: 1,
-			StatusMsg:  err.Error(),
-		})
-	}
 	userId_str := c.Query("user_id")
 	userId, err := strconv.ParseInt(userId_str, 10, 64)
 	if err != nil {
@@ -66,6 +58,7 @@ func FavoriteList(c *gin.Context) {
 			StatusCode: 1,
 			StatusMsg:  "Unknow user ID",
 		})
+		return
 	}
 
 	videos, err := service.QueryUserLikeList(userId)
@@ -79,16 +72,29 @@ func FavoriteList(c *gin.Context) {
 		return
 	}
 
-	// 判断ckId用户是否喜欢这些视频
-	if ckId == userId {
-		for i := 0; i < len(videos); i++ {
-			videos[i].IsFavorite = true
+	token := c.Query("token")
+	if token != "" {
+		ckId, err := service.CheckTokenReturnID(&token)
+		if err != nil {
+			c.JSON(http.StatusOK, Response{
+				StatusCode: 1,
+				StatusMsg:  err.Error(),
+			})
+			return
 		}
-	} else {
-		for i := 0; i < len(videos); i++ {
-			videos[i].IsFavorite = service.IsUserLikeVideo(ckId, videos[i].Id)
+
+		// 判断ckId用户是否喜欢这些视频
+		if ckId == userId {
+			for i := 0; i < len(videos); i++ {
+				videos[i].IsFavorite = true
+			}
+		} else {
+			for i := 0; i < len(videos); i++ {
+				videos[i].IsFavorite = service.IsUserLikeVideo(ckId, videos[i].Id)
+			}
 		}
 	}
+
 	log.Printf("favorite list size: %d", len(videos))
 	c.JSON(http.StatusOK, VideoListResponse{
 		Response: Response{

@@ -36,21 +36,24 @@ func QueryUserByUserId(userId int64) (*User, error) {
 }
 
 // 根据name，password查询是否存在user，如果存在返回user_id
-func QueryUserExisted(name *string, password *string) (bool, int64) {
+func QueryUserExisted(name *string, password *string) (int64, error) {
 	token := *name + "|" + *password
 	if val, exist := usersLoginInfo[token]; exist {
-		return true, val.Id
+		return val.Id, nil
 	}
-	userDB, err := database.NewDaoInstance().QueryUserByName(name, password)
+	userDB, err := database.NewDaoInstance().QueryUserByName(name)
 	if err != nil {
-		return false, 0
+		return 0, errors.New("User doesn't exist")
+	}
+	if *password != userDB.PassWord {
+		return 0, errors.New("password error")
 	}
 	userCtr := User{
 		Id:   userDB.UserId,
 		Name: userDB.Name,
 	}
 	usersLoginInfo[token] = userCtr
-	return true, userDB.UserId
+	return userDB.UserId, nil
 }
 
 // 根据userId判断用户是否存在
@@ -137,7 +140,7 @@ func CheckTokenReturnID(token *string) (int64, error) {
 	sp := strings.Index(*token, "|")
 	name := (*token)[:sp]
 	password := (*token)[sp+1:]
-	userDB, err := database.NewDaoInstance().QueryUserByName(&name, &password)
+	userDB, err := database.NewDaoInstance().QueryUserByNamePwd(&name, &password)
 	if err != nil {
 		return -1, err
 	}

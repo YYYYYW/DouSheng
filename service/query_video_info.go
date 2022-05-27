@@ -37,10 +37,11 @@ func GetFeed(latestTime int64) ([]Video, int64, error) {
 }
 
 // 发布视频
-func PublishVideo(playUrl *string, title *string, userId int64) error {
+func PublishVideo(playUrl *string, picUrl *string, title *string, userId int64) error {
 	videoDB := database.Video{
 		Publisher:  userId,
 		PlayUrl:    *playUrl,
+		CoverUrl:   *picUrl,
 		Title:      *title,
 		CreateTime: time.Now().UnixMilli(),
 	}
