@@ -64,11 +64,11 @@ func Init() {
 // 获取视频
 func (*Dao) QueryVideos(time int64) (*[]Video, error) {
 	var videos []Video
-	result := db.Model(&Video{}).Where("created_time >= ?", time).
+	db.Model(&Video{}).Where("created_time >= ?", time).
 		Limit(10).Order("created_time desc").Find(&videos)
 	if len(videos) == 0 {
 		log.Printf("no videos")
-		result = db.Model(&Video{}).Order("created_time desc").
+		result := db.Model(&Video{}).Order("created_time desc").
 			Limit(10).Find(&videos)
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return &[]Video{}, nil
