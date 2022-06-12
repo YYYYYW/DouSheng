@@ -67,6 +67,7 @@ func (*Dao) QueryVideos(time int64) (*[]Video, error) {
 	result := db.Model(&Video{}).Where("created_time >= ?", time).
 		Limit(10).Order("created_time desc").Find(&videos)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		log.Printf("no videos")
 		result = db.Model(&Video{}).Order("created_time desc").
 			Limit(10).Find(&videos)
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
